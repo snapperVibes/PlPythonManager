@@ -5,9 +5,9 @@ services:
   db:
     build:
       context: "./"
-      dockerfile: "tests/Dockerfile.db"
+      dockerfile: "Dockerfile.db"
     env_file:
-      - "./tests/.env"
+      - ".env"
     networks:
       - "snap_network"
     volumes:
@@ -15,12 +15,12 @@ services:
 
   tester:
     build:
-      context: "./"
+      context: "../"
       dockerfile: "tests/Dockerfile.tester"
     env_file:
-      - "./tests/.env"
-    volumes:
-    - "./:/src"
+      - ".env"
+#    volumes:
+#    - "../:/src"
     networks:
       - "snap_network"
     links:

@@ -1,0 +1,36 @@
+# Todo: Move docker-compose and .dockerignore to tests folder
+version: "3.3"
+
+services:
+  db:
+    build:
+      context: "./"
+      dockerfile: "tests/Dockerfile.db"
+    env_file:
+      - "./tests/.env"
+    networks:
+      - "snap_network"
+    volumes:
+      - "snap_volume:/var/lib/postgresql/data"
+
+  tester:
+    build:
+      context: "./"
+      dockerfile: "tests/Dockerfile.tester"
+    env_file:
+      - "./tests/.env"
+    volumes:
+    - "./:/src"
+    networks:
+      - "snap_network"
+    links:
+      - "db:db"
+    depends_on:
+      - "db"
+
+volumes:
+  snap_volume:
+
+networks:
+  snap_network:
+    driver: "bridge"

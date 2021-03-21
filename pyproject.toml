@@ -37,6 +37,5 @@ exclude = '''
   | buck-out
   | build
   | dist
-  | tests/.*/setup.py
 )/
 '''

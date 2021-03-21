@@ -16,4 +16,4 @@ RUN poetry install --no-root
 
 COPY . .
 
-ENTRYPOINT tests/_wait_for_it.sh db:5432
+ENTRYPOINT tests/_wait_for_it.sh -q db:5432 -- pytest tests/

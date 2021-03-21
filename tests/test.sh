@@ -12,6 +12,4 @@ if [ $(uname -s) = "Linux" ]; then
 fi
 
 docker-compose -f tests/docker-compose.yml build
-docker-compose -f tests/docker-compose.yml up -d
-#sleep 3
-docker-compose -f tests/docker-compose.yml exec -T tester pytest /src/tests/
+docker-compose -f tests/docker-compose.yml up --abort-on-container-exit

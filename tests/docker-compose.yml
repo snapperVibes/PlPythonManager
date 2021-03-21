@@ -19,8 +19,9 @@ services:
       dockerfile: "tests/Dockerfile.tester"
     env_file:
       - ".env"
-#    volumes:
-#    - "../:/src"
+    environment:
+      # Allows tests to access plpython_manager as if it were a module
+      - "PYTHONPATH=/src"
     networks:
       - "snap_network"
     links:

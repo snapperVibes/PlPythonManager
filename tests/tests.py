@@ -1,66 +1,133 @@
 import logging
-import os
-from typing import Generator
 
 import pytest
-import sqlalchemy
-# Tenacity allows code to retry until it works
-from sqlalchemy.orm import sessionmaker
-from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
+from sqlalchemy import text
+
+import plpython_manager as plpy_man
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-###################################################################################################
-# Setup database
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-POSTGRES_SERVER = os.getenv("POSTGRES_SERVER")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-
-engine = sqlalchemy.create_engine(
-    f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}",
-    future=True,
-    echo=True
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def test_db_setup(db):
+    actual = db.execute(text("SELECT 1")).one()
+    expected = (1,)
+    assert actual == expected
 
 
-###################################################################################################
-# Fixtures
-@pytest.fixture()
-def db() -> Generator:
-    yield SessionLocal()
+class TestCopyRegisteredObjectsToGD:
+    def test_prep_source(self):
+        def func(x="hello", y="world"):
+            """ This is a docstring. """
+            # This is a comment
+            return f"{x}, {y}"
+
+        class Class:
+            pass
+
+        actual = plpy_man._prep_source([func, Class])
+        expected = '''\
+def func(x="hello", y="world"):
+    """ This is a docstring. """
+    # This is a comment
+    return f"{x}, {y}"
 
 
-###################################################################################################
-max_tries = 15
-wait_seconds = 1
+GD["func"] = func
 
 
-@retry(
-    stop=stop_after_attempt(max_tries),
-    wait=wait_fixed(wait_seconds),
-    before=before_log(logger, logging.INFO),
-    after=after_log(logger, logging.ERROR),
-)
-def setup_database() -> None:
-    try:
-        db = SessionLocal()
-        db.execute("SELECT 1")
-    except Exception as e:
-        logger.warning(e)
-        raise e
+class Class:
+    pass
 
 
-def test_hello():
-    assert True
+GD["Class"] = Class
+'''
+        assert actual == expected
+
+    # THIS TEST DOES NOT ACTUALLY WORK AND plpy_man needs updated
+    #
+    #     def test_prep_source_with_alias(self):
+    #         # Todo: Rename test
+    #         def original():
+    #             pass
+    #
+    #         new = original
+    #
+    #         actual = plpy_man._prep_source([new])
+    #         expected = """\
+    # def original():
+    #     pass
+    #
+    #
+    # GD["original"] = original
+    # """
+    #         assert actual == expected
+    #
+    #     def test_prep_source_with_new_name(self):
+    #         def original():
+    #             pass
+    #
+    #         original.__name__ = "new"
+    #
+    #         actual = plpy_man._prep_source([original])
+    #         expected = """\
+    # def original():
+    #     pass
+    #
+    #
+    # GD["new"] = new
+    # """
+    #         assert actual == expected
+
+    def test_write_sql(self):
+        py_script = '''\
+def func(x="hello", y="world"):
+    """ This is a docstring. """
+    # This is a comment
+    return f"{x}, {y}"
 
 
-def test_test_setup():
-    setup_database()
+GD["func"] = func
+
+
+class Class:
+    pass
+
+
+GD["Class"] = Class
+'''
+        result = plpy_man._write_sql(py_script)
+        expected_str = '''\
+CREATE OR REPLACE FUNCTION add_to_gd()
+RETURNS TEXT AS $$
+def func(x="hello", y="world"):
+    """ This is a docstring. """
+    # This is a comment
+    return f"{x}, {y}"
+
+
+GD["func"] = func
+
+
+class Class:
+    pass
+
+
+GD["Class"] = Class
+
+$$ LANGUAGE plpython3u;
+'''
+        assert result != expected_str
+        assert str(result) == expected_str
+
+    # def test_upload_to_postgres(self, db):
+    #     # Todo: unit test the last part of the function? Seems unnecessary
+    #     pass
+
+    # def test_copy_registered_objects_to_GD(self, db):
+    #     manager = plpy_man.PlPythonManager()
+    #     manager.registered_objects.append()
+
 
 if __name__ == "__main__":
     pytest.main()

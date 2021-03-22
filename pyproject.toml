@@ -9,12 +9,11 @@ authors = ["Snapper <learningwithsnapper@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 SQLAlchemy = "1.4.0b3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.2"
-pytest-flake8 = "^1.0.7"
 mypy = "0.720"
 black = "^20.8b1"
 psycopg2-binary = "^2.8.6"

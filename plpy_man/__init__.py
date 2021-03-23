@@ -8,7 +8,18 @@ import enum
 import inspect
 import textwrap
 from functools import partial
-from typing import Sequence, Any, List, Callable, overload, Dict, TypedDict, NoReturn
+from typing import (
+    Sequence,
+    Any,
+    List,
+    Callable,
+    overload,
+    Dict,
+    TypedDict,
+    NoReturn,
+    Optional,
+    NamedTuple,
+)
 
 from sqlalchemy import text
 from sqlalchemy import sql
@@ -52,16 +63,27 @@ class PlpyMan:
         return wrapper
 
     def flush(self, db: Session) -> None:
+        self._flush_gd(db)
+        self._flush_funcs(db)
+
+    def _flush_gd(self, db: Session) -> None:
         source = _prep_source(self._gd)
-        sql = _write_sql(source)
-        _upload_to_postgres(db, sql)
+        sql = _write_gd_sql(source)
+        db.execute(sql)
+        db.execute("SELECT _add_to_gd()")
         self._gd = []
+
+    def _flush_funcs(self, db: Session) -> None:
+        for func in self._funcs:
+            sql = _write_plpy_func_sql(func)
+            db.execute(sql)
+        self._funcs = []
 
 
 _default_manager = PlpyMan()
 to_gd = partial(PlpyMan.to_gd, self=_default_manager)
-flush = partial(PlpyMan.flush, self=_default_manager)
 plpy_func = partial(PlpyMan.plpy_func, self=_default_manager)
+flush = partial(PlpyMan.flush, self=_default_manager)
 
 
 def _prep_source(objs: Sequence[Callable]) -> str:
@@ -75,7 +97,7 @@ def _prep_source(objs: Sequence[Callable]) -> str:
     return "\n".join(source)[:-1]  # The final extraneous line is trimmed
 
 
-def _write_sql(py_script: str) -> text:
+def _write_gd_sql(py_script: str) -> text:
     return text(
         f"""\
 CREATE OR REPLACE FUNCTION _add_to_gd()
@@ -86,10 +108,45 @@ $$ LANGUAGE plpython3u;
     )
 
 
-def _upload_to_postgres(db: Session, sql: sql.base.Executable) -> None:
-    # Functions make unit testing more straightforward
-    db.execute(sql)
-    db.execute("SELECT add_to_gd()")
+def _write_plpython_sql(func: Callable[..., Any]) -> text:
+    pass
+
+
+# def _write_plpy_func_sql(func: Callable[..., Any]) -> text:
+#     class _Argument:
+#         argmode: Optional[str]
+#         argname: Optional[str]
+#         argtype: str
+#         _default_expr: Optional[str]
+#
+#         @property
+#         def default_expr(self):
+#             if self._default_expr:
+#                 return f"= {self._default_expr}"
+#             return None
+#
+#         def __str__(self):
+#             parameters = []
+#             for param in [self.argmode, self.argname, self.argtype, self.default_expr]:
+#                 if param:
+#                     parameters.append(param)
+#             return " ".join(p for p in parameters)
+#
+#     name: str
+#     argument_clause: Sequence[_Argument]
+#     return_clause: ...
+#     # rettype or table
+#     rettype: Optional[str]
+#     # together, repeatable zipped list
+#     columns: Sequence[_Column]
+#     return text(
+#         f"""\
+# CREATE OR REPLACE FUNCTION
+#     {name}( {",".join(str(arg) for arg in argument_clause)} )
+#     {return_clause}
+#
+# """
+#     )
 
 
 ##############################################################################

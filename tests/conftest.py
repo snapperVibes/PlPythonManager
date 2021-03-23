@@ -1,6 +1,6 @@
 """ Setup file the test runner 'pytest' uses """
 import os
-from typing import Generator, Any
+from typing import Generator
 
 import pytest
 from sqlalchemy import Column, INT, TEXT, BOOLEAN, ForeignKey, create_engine as _create_engine

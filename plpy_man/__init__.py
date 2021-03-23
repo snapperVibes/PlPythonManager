@@ -8,24 +8,48 @@ import enum
 import inspect
 import textwrap
 from functools import partial
-from typing import Sequence, Any, List, Callable, overload, Dict, TypedDict
+from typing import Sequence, Any, List, Callable, overload, Dict, TypedDict, NoReturn
 
 from sqlalchemy import text
 from sqlalchemy import sql
 from sqlalchemy.orm import Session
 
 
+class PlpyManError(BaseException):
+    """ Exception representing errors resulting from improper use of the plpy_man library """
+
+
 class PlpyMan:
     def __init__(self) -> None:
         self._gd: List[Any] = []
-        self.funcs: List[Callable] = []
+        self._funcs: List[Callable] = []
 
     def to_gd(self, obj: Any) -> None:
         """ Registers an object to have its source copied to the PlPython Global Dictionary """
         self._gd.append(obj)
 
-    def plpy_func(self, f):
-        """ Decorator that registers a PlPython Func"""
+    def plpy_func(self, func: Callable[..., Any]) -> Callable[..., NoReturn]:
+        """
+        Decorator that registers a PlPython Function
+
+        Functions wrapped by plpy_func do not execute on the web server.
+        Instead, the function can be called from the database as a PlPython function.
+        """
+        self._funcs.append(func)
+
+        def wrapper(*args: Any, **kwargs: Any) -> NoReturn:
+            raise PlpyManError(
+                f"{func.__name__} was registered as a plpy_func. "
+                f"This means that only the database can run this function.\n\n"
+                f"Were you trying to write a function that both "
+                f"this script AND Plpython could accesses?\n"
+                f"Instead of decorating {func.__name__} with plpy_func, "
+                f"use something like `plpy_man.to_gd({func.__name__})`. "
+                f"Then you can access this function in the GD of plpy functions while "
+                f"still being able to call this function normally."
+            )
+
+        return wrapper
 
     def flush(self, db: Session) -> None:
         source = _prep_source(self._gd)
@@ -71,8 +95,8 @@ def _upload_to_postgres(db: Session, sql: sql.base.Executable) -> None:
 ##############################################################################
 # Mocks
 # https://www.postgresql.org/docs/13/plpython-sharing.html
-SD: Dict = ...
-GD: Dict = ...
+SD = ...
+GD = ...
 
 
 # https://www.postgresql.org/docs/13/plpython-trigger.html
@@ -93,7 +117,7 @@ class plpy:
 
     # https://www.postgresql.org/docs/13/plpython-database.html
     @overload
-    def execute(self, query, max_rows=None):
+    def execute(self, query: str, max_rows=None):
         pass
 
     def prepare(self, query, argtypes=None):
@@ -175,7 +199,7 @@ class Result:
         pass
 
 
-class PlPyEnv(enum.Enum):
+class PlpyEnv(enum.Enum):
     # https://www.postgresql.org/docs/10/plpython-envar.html
     PYTHONHOME = "PYTHONHOME"
     PYTHONPATH = "PYTHONPATH"
@@ -190,4 +214,4 @@ class PlPyEnv(enum.Enum):
     PYTHONHASHSEED = "PYTHONHASHSEED"
 
 
-__cake__ = u'\u2728 \U0001f9b8\u200d\u2642\ufe0f \u2728'
+__cake__ = "\u2728 \U0001f9b8\u200d\u2642\ufe0f \u2728"

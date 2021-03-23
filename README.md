@@ -1,5 +1,5 @@
 # Plpy Man 🦸‍♂️
-######PlPython manager that synchronizes Python code between your web server and Postgres database 
+###### PlPython manager that synchronizes Python code between your web server and Postgres database 
 [comment]: <> (No more messing about with PlPgSQL; Plpy Man to the rescue!)
 ## PlPy Man is not released. Do not use yet.
 

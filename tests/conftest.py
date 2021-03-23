@@ -1,12 +1,14 @@
 """ Setup file the test runner 'pytest' uses """
 import os
+from typing import Generator, Any
 
 import pytest
 from sqlalchemy import Column, INT, TEXT, BOOLEAN, ForeignKey, create_engine as _create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import relationship, sessionmaker, declarative_base
 
 
-def create_test_engine():
+def create_test_engine() -> Engine:
     return _create_engine(
         f"postgresql+psycopg2://{os.getenv('POSTGRES_USER')}:"
         f"{os.getenv('POSTGRES_PASSWORD')}@"
@@ -19,7 +21,7 @@ def create_test_engine():
 
 
 @pytest.fixture
-def db():
+def db() -> Generator:
     engine = create_test_engine()
     Base = declarative_base(bind=engine)
     try:
@@ -32,7 +34,7 @@ def db():
 
 
 @pytest.fixture
-def db__users_and_items():
+def db__users_and_items() -> Generator:
     engine = create_test_engine()
     Base = declarative_base(bind=engine)
     try:

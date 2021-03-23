@@ -1,22 +1,23 @@
 import logging
+import textwrap
 
 import pytest
 from sqlalchemy import text
 
-import plpython_manager as plpy_man
+import plpy_man
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_db_setup(db):
+def test_db_setup(db) -> None:
     actual = db.execute(text("SELECT 1")).one()
     expected = (1,)
     assert actual == expected
 
 
-class TestCopyRegisteredObjectsToGD:
-    def test_prep_source(self):
+class TestAddToGD:
+    def test_prep_source(self) -> None:
         def func(x="hello", y="world"):
             """ This is a docstring. """
             # This is a comment
@@ -26,22 +27,23 @@ class TestCopyRegisteredObjectsToGD:
             pass
 
         actual = plpy_man._prep_source([func, Class])
-        expected = '''\
-def func(x="hello", y="world"):
-    """ This is a docstring. """
-    # This is a comment
-    return f"{x}, {y}"
+        expected = textwrap.dedent('''\
+            def func(x="hello", y="world"):
+                """ This is a docstring. """
+                # This is a comment
+                return f"{x}, {y}"
 
 
-GD["func"] = func
+            GD["func"] = func
 
 
-class Class:
-    pass
+            class Class:
+                pass
 
 
-GD["Class"] = Class
-'''
+            GD["Class"] = Class
+            '''
+        )
         assert actual == expected
 
     # THIS TEST DOES NOT ACTUALLY WORK AND plpy_man needs updated
@@ -79,44 +81,46 @@ GD["Class"] = Class
     # """
     #         assert actual == expected
 
-    def test_write_sql(self):
-        py_script = '''\
-def func(x="hello", y="world"):
-    """ This is a docstring. """
-    # This is a comment
-    return f"{x}, {y}"
+    def test_write_sql(self) -> None:
+        py_script = textwrap.dedent('''\
+            def func(x="hello", y="world"):
+                """ This is a docstring. """
+                # This is a comment
+                return f"{x}, {y}"
 
 
-GD["func"] = func
+            GD["func"] = func
 
 
-class Class:
-    pass
+            class Class:
+                pass
 
 
-GD["Class"] = Class
-'''
+            GD["Class"] = Class
+            '''
+    )
         result = plpy_man._write_sql(py_script)
-        expected_str = '''\
-CREATE OR REPLACE FUNCTION add_to_gd()
-RETURNS TEXT AS $$
-def func(x="hello", y="world"):
-    """ This is a docstring. """
-    # This is a comment
-    return f"{x}, {y}"
+        expected_str = textwrap.dedent('''\
+            CREATE OR REPLACE FUNCTION _add_to_gd()
+            RETURNS TEXT AS $$
+            def func(x="hello", y="world"):
+                """ This is a docstring. """
+                # This is a comment
+                return f"{x}, {y}"
 
 
-GD["func"] = func
+            GD["func"] = func
 
 
-class Class:
-    pass
+            class Class:
+                pass
 
 
-GD["Class"] = Class
+            GD["Class"] = Class
 
-$$ LANGUAGE plpython3u;
-'''
+            $$ LANGUAGE plpython3u;
+            '''
+        )
         assert result != expected_str
         assert str(result) == expected_str
 

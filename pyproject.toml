@@ -5,7 +5,11 @@
 name = "plpython_manager"
 version = "0.0.0-alpha"
 description = "Keep source code in-sync between PlPython and your web-server"
-authors = ["Snapper <learningwithsnapper@gmail.com>"]
+packages = [
+    { include = "plpy_man" },
+]
+authors = ["Snapper Vibes <learningwithsnapper@gmail.com>"]
+keywords = ["plpythonu", "plpython3u"]
 license = "MIT"
 
 [tool.poetry.dependencies]

@@ -87,9 +87,9 @@ class PlpyMan:
 
 
 _default_manager = PlpyMan()
-to_gd = partial(PlpyMan.to_gd, self=_default_manager)
-plpy_func = partial(PlpyMan.plpy_func, self=_default_manager)
-flush = partial(PlpyMan.flush, self=_default_manager)
+to_gd = partial(PlpyMan.to_gd, _default_manager)
+plpy_func = partial(PlpyMan.plpy_func, _default_manager)
+flush = partial(PlpyMan.flush, _default_manager)
 
 
 def _prep_gd_script(objs: Sequence[Callable]) -> str:

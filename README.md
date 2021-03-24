@@ -1,7 +1,6 @@
 # Plpy Man 🦸‍♂️
 ###### PlPython manager that synchronizes Python code between your web server and Postgres database 
 [comment]: <> (No more messing about with PlPgSQL; Plpy Man to the rescue!)
-## PlPy Man is not released. Do not use yet.
 
 ## Quickstart
 ### Write database function in pure Python.
@@ -27,7 +26,8 @@ plpy_man.flush(db)
 value = db.execute(sa.text("SELECT py_add(3, 5)"))
 assert value == 8
 ```
-### Make objects callable from the PlPython GD
+### Synchronizes Python code between your web server and database functions
+Ensure your PlPython functions match the web-server functions by copying them to PlPython's GD (Gloabl Dict)
 ```python
 import plpy_man
 import sqlalchemy as sa

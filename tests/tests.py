@@ -509,6 +509,22 @@ $$ LANGUAGE plpython3u;
 #     assert actual == expected
 
 
+def test_working_example(db):
+    from plpy_man import GD
+    def global_func(n):
+        return f"Hello, {n}"
+
+    plpy_man.to_gd(global_func)
+
+    @plpy_man.plpy_func
+    def sql_func(name: str) -> str:
+        return GD["global_func"](name)
+
+    plpy_man.flush(db)
+
+    actual = db.execute(text("SELECT sql_func('World')")).one()
+    expected = ("Hello, World",)
+    assert actual == expected
 # fmt: on
 if __name__ == "__main__":
     pytest.main()

@@ -1,4 +1,6 @@
-# Mocks
+import enum
+from typing import Dict, TypedDict, overload
+
 # https://www.postgresql.org/docs/13/plpython-sharing.html
 SD: Dict = {}
 GD: Dict = {}

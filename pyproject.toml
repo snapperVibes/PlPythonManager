@@ -41,5 +41,6 @@ exclude = '''
   | buck-out
   | build
   | dist
+  | workspace.py
 )/
 '''

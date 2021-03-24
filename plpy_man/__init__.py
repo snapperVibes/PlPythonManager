@@ -14,7 +14,7 @@ import inspect
 import textwrap
 from functools import partial
 from unittest.mock import MagicMock
-from typing import Sequence, Any, List, Callable, NoReturn, Union, Tuple, Dict, TypedDict
+from typing import Sequence, Any, List, Callable, NoReturn, Union, Tuple, Dict, TypedDict, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.type_api import TypeEngine
@@ -34,23 +34,37 @@ from sqlalchemy.sql.sqltypes import (
 )
 
 
+Type_ = Union[TypeEngine, str, Any]
+
+
+class _ToSqlArgs(TypedDict):
+    func: Callable[..., Any]
+    argtypes: Optional[Sequence[Type_]]
+    rettype: Type_
+
+
 class PlpyMan:
     def __init__(self) -> None:
         self._gd: List[Any] = []
-        self._funcs: List[Callable] = []
+        self._funcs: List[_ToSqlArgs] = []
 
     def to_gd(self, obj: Any) -> None:
         """ Registers an object to have its source copied to the PlPython Global Dictionary """
         self._gd.append(obj)
 
-    def plpy_func(self, func: Callable[..., Any]) -> Callable[..., NoReturn]:
+    def plpy_func(
+        self,
+        func: Callable[..., Any],
+        argtypes: Optional[Sequence[Type_]] = None,
+        rettype: Type_ = "",
+    ) -> Callable[..., NoReturn]:
         """
         Decorator that registers a PlPython Function
 
         Functions wrapped by plpy_func do not execute on the web server.
         Instead, the function can be called from the database as a PlPython function.
         """
-        self._funcs.append(func)
+        self._funcs.append({"func": func, "argtypes": argtypes, "rettype": rettype})
 
         def wrapper(*args: Any, **kwargs: Any) -> NoReturn:
             raise TypeError(
@@ -67,6 +81,9 @@ class PlpyMan:
         return wrapper
 
     def flush(self, db: Session) -> None:
+        """Flush registered objects
+        (functions decorated by plpy_func and objects supplied to to_gd) to the database.
+        """
         self._flush_gd(db)
         self._flush_funcs(db)
 
@@ -78,10 +95,8 @@ class PlpyMan:
         self._gd = []
 
     def _flush_funcs(self, db: Session) -> None:
-        for func in self._funcs:
-            sql = _to_sql(
-                func,
-            )
+        for f in self._funcs:
+            sql = _to_sql(**f)
             db.execute(sql)
         self._funcs = []
 
@@ -119,23 +134,25 @@ class _Inspected(TypedDict):
 
 
 def _inspect_function(func: Callable) -> _Inspected:
-    lines = inspect.getsource(func)
-    source = textwrap.dedent(lines)
-    _ast = ast.parse(source)
-    _func_body = _ast.body[0].body
-    segments = []
-    for segment in _func_body:
-        segments.append(_dedent(ast.get_source_segment(source, segment)))
-    func_body = "\n".join(segments)
-
     code = func.__code__
     return {
         "name": code.co_name,
         # Todo: You could mess this up with something like def why(x): z = x; del(x); return z
         "args": code.co_varnames[: code.co_argcount],
         "annotations": func.__annotations__,
-        "body": func_body,
+        "body": _get_func_body(func),
     }
+
+
+def _get_func_body(func: Callable) -> str:
+    lines = inspect.getsource(func)
+    source = textwrap.dedent(lines)
+    _ast = ast.parse(source)
+    _func_body = _ast.body[0].body  # Todo: Why doesn't mypy like this?
+    segments = []
+    for segment in _func_body:
+        segments.append(_dedent(ast.get_source_segment(source, segment)))
+    return "\n".join(segments)
 
 
 # Local copy of SQLAlchemy's private type map
@@ -155,12 +172,9 @@ _type_map = {
 }
 
 
-Type_ = Union[TypeEngine, str, Any]
-
-
 def _to_sql(
     func: Callable[..., Any],
-    argtypes: Sequence[Type_] = (),
+    argtypes: Optional[Sequence[Type_]] = None,
     rettype: Type_ = "",
 ) -> text:
     class ListAppender(list):
@@ -183,7 +197,7 @@ def _to_sql(
 
     # Argument Clause
     _argtypes: List[str] = []
-    if argtypes:
+    if argtypes is not None:
         for t in argtypes:
             _argtypes.append(_stringify_type(t))
     else:

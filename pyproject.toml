@@ -13,7 +13,8 @@ keywords = ["plpythonu", "plpython3u"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+# Requires ast.get_source_segment, a new function in 3.8
+python = "^3.8"
 SQLAlchemy = "1.4.0b3"
 
 [tool.poetry.dev-dependencies]

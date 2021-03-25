@@ -2,7 +2,7 @@
 #   https://snarky.ca/what-the-heck-is-pyproject-toml/
 #   https://setuptools.readthedocs.io/en/latest/build_meta.html
 [tool.poetry]
-name = "plpython_manager"
+name = "plpy_man"
 version = "0.1.0"
 description = "Keep source code in-sync between PlPython and your web-server"
 packages = [

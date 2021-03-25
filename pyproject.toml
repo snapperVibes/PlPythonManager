@@ -3,7 +3,7 @@
 #   https://setuptools.readthedocs.io/en/latest/build_meta.html
 [tool.poetry]
 name = "plpy_man"
-version = "0.1.0"
+version = "0.2.0"
 description = "Keep source code in-sync between PlPython and your web-server"
 packages = [
     { include = "plpy_man" },

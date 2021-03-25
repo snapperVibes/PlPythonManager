@@ -1,126 +1,156 @@
+__all__ = ["SD", "GD", "TD", "plpy", "PLyPlan", "PLyResult", "PLyEnviron"]
 import enum
-from typing import Dict, TypedDict, overload
+from typing import Dict, TypedDict, Sequence, Any, Literal, ContextManager, Union
+from unittest.mock import MagicMock
 
 # https://www.postgresql.org/docs/13/plpython-sharing.html
-SD: Dict = {}
-GD: Dict = {}
+SD: Dict = MagicMock()
+GD: Dict = MagicMock()
 
 
 # https://www.postgresql.org/docs/13/plpython-trigger.html
-class _TD(TypedDict):
-    event: str
-    when: str
-    level: str
+class _TriggerDict(TypedDict):
+    event: Literal["INSERT", "UPDATE", "DELETE", "TRUNCATE"]
+    when: Literal["BEFORE", "AFTER", "INSTEAD OF"]
+    level: Literal["ROW", "STATEMENT"]
     new: Dict
     old: Dict
     name: str
-    table_schema: str
+    table_schema: Any
     relid: str
-    args: str
+    args: Any
 
 
-TD = _TD()
-
-
-class plpy:
-    """ Mocked plpy class that is automatically imported by methods on Plpy"""
-
-    # https://www.postgresql.org/docs/13/plpython-database.html
-    @overload
-    def execute(self, query: str, max_rows=None):
-        pass
-
-    def prepare(self, query, argtypes=None):
-        pass
-
-    def execute(self, plan, arguments=None, max_rows=None):
-        pass
-
-    @overload
-    def cursor(self, query):
-        pass
-
-    def cursor(self, plan, arguments=None):
-        pass
-
-    class SPIError(BaseException):
-        pass
-
-    class spiexceptions:
-        # Todo: There is a lot to unpack here
-        # https://www.postgresql.org/docs/13/errcodes-appendix.html#ERRCODES-TABLE
-        pass
-
-    # https://www.postgresql.org/docs/13/plpython-database.html
-    def commit(self):
-        pass
-
-    def rollback(self):
-        pass
-
-    # https://www.postgresql.org/docs/13/plpython-util.html
-    def debug(self, msg, **kwargs):
-        pass
-
-    def log(self, msg, *args, **kwargs):
-        pass
-
-    def info(self, msg, *args, **kwargs):
-        pass
-
-    def notice(self, msg, *args, **kwargs):
-        pass
-
-    def warning(self, msg, *args, **kwargs):
-        pass
-
-    def error(self, msg, *args, **kwargs):
-        pass
-
-    def fatal(self, msg, *args, **kwargs):
-        pass
-
-    def quote_ident(self, string):
-        pass
-
-    def quote_nullable(self, string):
-        pass
-
-    def quote_literal(self, string):
-        pass
-
-
-class PLyPlan:
-    def cursor(self, **kwargs):
-        pass
-
-    def execute(self, **kwargs):
-        pass
-
-    def status(self, **kwargs):
-        pass
+TD: _TriggerDict = MagicMock()
 
 
 class PLyResult:
     """ Mocked Result returned by plpy.execute """
 
-    def nrows(self):
+    def nrows(self, *args: Any) -> int:
         pass
 
-    def status(self):
+    def status(self, *args: Any) -> int:
         pass
 
-    def colnames(self):
+    def colnames(self) -> Sequence[str]:
         pass
 
-    def coltypes(self):
+    def coltypes(self) -> Sequence[str]:
         pass
 
-    def coltypmods(self):
+    def coltypmods(self) -> Sequence[Sequence]:
         pass
 
+    def __str__(self) -> str:
+        ...
 
-class PlpyEnv(enum.Enum):
+
+class PLyCursor:
+    def fetch(self, *args: Any) -> PLyResult:
+        ...
+
+    def close(self) -> None:
+        ...
+
+    def __iter__(self) -> "PLyCursor":
+        ...
+
+    def __next__(self) -> PLyResult:
+        ...
+
+
+class PLyPlan:
+    def cursor(self, *args: Any) -> PLyCursor:
+        ...
+
+    def execute(self, *args: Any) -> PLyResult:
+        ...
+
+    def status(self, *args: Any) -> int:
+        ...
+
+
+# https://www.postgresql.org/docs/13/plpython-database.html
+class plpy:
+    """ Mocked plpy class that is automatically imported by methods on Plpy"""
+
+    def execute(self, query: Union[PLyPlan, str], *args: Any) -> PLyResult:
+        ...
+
+    def prepare(self, query: str, *args: Any) -> PLyPlan:
+        ...
+
+    def cursor(self, query: Union[PLyPlan, str], *args: Any) -> PLyCursor:
+        ...
+
+    class SPIError(BaseException):
+        ...
+
+    class spiexceptions:
+        # Todo: There is a lot to unpack here
+        # https://www.postgresql.org/docs/13/errcodes-appendix.html#ERRCODES-TABLE
+        ...
+
+    # https://www.postgresql.org/docs/13/plpython-database.html
+    def commit(self) -> None:
+        ...
+
+    def rollback(self) -> None:
+        ...
+
+    def subtransaction(self) -> ContextManager:
+        ...
+
+    _log_kwargs = [
+        "detail",
+        "hint",
+        "sqlstate",
+        "schema_name",
+        "column_name",
+        "datatype_name",
+        "constraint_name",
+    ]
+
+    # https://www.postgresql.org/docs/13/plpython-util.html
+    def debug(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def log(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def info(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def notice(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def warning(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def error(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def fatal(self, msg: str, **kwargs: Any) -> None:
+        ...
+
+    def Error(self, msg: str) -> None:
+        return self.error(msg)
+
+    def Fatal(self, msg: str) -> None:
+        return self.fatal(msg)
+
+    def quote_ident(self, string: str) -> None:
+        ...
+
+    def quote_nullable(self, string: str) -> None:
+        ...
+
+    def quote_literal(self, string: str) -> None:
+        ...
+
+
+class PLyEnviron(enum.Enum):
     # https://www.postgresql.org/docs/10/plpython-envar.html
     PYTHONHOME = "PYTHONHOME"
     PYTHONPATH = "PYTHONPATH"

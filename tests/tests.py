@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import text
 
 import plpy_man
-from plpy_man import _to_sql, plpy
+from plpy_man.manager import _to_sql
 
 
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +28,7 @@ class TestAddToGD:
         class Class:
             pass
 
-        actual = plpy_man._prep_gd_script([func, Class])
+        actual = plpy_man.manager._prep_gd_script([func, Class])
         expected = textwrap.dedent(
             '''\
             def func(x="hello", y="world"):
@@ -55,7 +55,7 @@ class TestAddToGD:
             pass
 
         new1 = original
-        actual1 = plpy_man._prep_gd_script([new1])
+        actual1 = plpy_man.manager._prep_gd_script([new1])
         expected = textwrap.dedent(
             """\
             def original():
@@ -66,29 +66,18 @@ class TestAddToGD:
             """
         )
         assert actual1 == expected
-        # Todo: Change to inspect to make this work
-        original.__name__ = "new name"
-        actual2 = plpy_man._prep_gd_script([new1])
-        assert actual2 == expected
-
-    #     def test_prep_source_with_new_name(self):
-    #         def original():
-    #             pass
-    #
-    #         original.__name__ = "new"
-    #
-    #         actual = plpy_man._prep_source([original])
-    #         expected = """\
-    # def original():
-    #     pass
-    #
-    #
-    # GD["new"] = new
-    # """
-    #         assert actual == expected
 
     def test_write_sql(self) -> None:
-        py_script = textwrap.dedent(
+        def func(x="hello", y="world"):
+            """ This is a docstring. """
+            # This is a comment
+            return f"{x}, {y}"
+
+        class Class:
+            pass
+
+        result = plpy_man.manager._prep_gd_script([func, Class])
+        expected = textwrap.dedent(
             '''\
             def func(x="hello", y="world"):
                 """ This is a docstring. """
@@ -106,31 +95,7 @@ class TestAddToGD:
             GD["Class"] = Class
             '''
         )
-        result = plpy_man._write_gd_sql(py_script)
-        expected_str = textwrap.dedent(
-            '''\
-            CREATE OR REPLACE FUNCTION _add_to_gd()
-            RETURNS TEXT AS $$
-            def func(x="hello", y="world"):
-                """ This is a docstring. """
-                # This is a comment
-                return f"{x}, {y}"
-
-
-            GD["func"] = func
-
-
-            class Class:
-                pass
-
-
-            GD["Class"] = Class
-
-            $$ LANGUAGE plpython3u;
-            '''
-        )
-        assert result != expected_str
-        assert str(result) == expected_str
+        assert result == expected
 
     # def test_upload_to_postgres(self, db):
     #     # Todo: unit test the last part of the function? Seems unnecessary
@@ -150,25 +115,6 @@ class TestAddToGD:
 
 
 # fmt: off
-########################################################################################
-# # https://www.postgresql.org/docs/13/plpython-data.html#id-1.8.11.11.3
-# def test_plpython_called():
-#     # boolean -> bool
-#     # smallint, bigint, oid, int -> int
-#     # real, double -> float
-#     # numeric -> Decimal
-#     # bytea -> bytes
-#     # Everything else -> str
-#     # Nonscalar -> Other?
-#
-#
-# def test_plpython_returns():
-#     # boolean -> bool(result)
-#     # bytea -> bytes(result) # And then to bytea
-#     # everything else -> str(result) # And then to type # float uses __repr__ instead
-#     # Nonscalar -> other
-
-
 def test_type_annotations() -> None:
     def pyadd(a: int, b: int) -> None:
         print(a + b)
@@ -184,6 +130,7 @@ $$ LANGUAGE plpython3u;
 
 ########################################################################################
 # https://www.postgresql.org/docs/13/plpython-data.html#id-1.8.11.11.4
+# Todo: Write better tests. It would be hard for one of these to fail without them all going down
 def test_null_none():
     def pymax(a, b):
         if (a is None) or (b is None):
@@ -382,135 +329,9 @@ $$ LANGUAGE plpython3u;
     assert actual == expected
 
 
-# def test_function_with_out_parameters():
-#     def multiout_simple(i, j):
-#         return (1, 2)
-#
-#     actual = to_sql(multiout_simple).__str__()
-#     expected = ("""\
-# CREATE OR REPLACE FUNCTION multiout_simple(OUT i integer, OUT j integer) AS $$
-#     return (1, 2)
-# $$ LANGUAGE plpython3u;
-# """
-#     )
-#     assert actual == expected
-#
-#
-# def test_procedure_with_output_parameters():
-#     def python_triple(a, b):
-#         return (a * 3, b * 3)
-#
-#     actual = to_sql(python_triple).__str__()
-#     expected = ("""\
-# CREATE PROCEDURE python_triple(INOUT a integer, INOUT b integer) AS $$
-#     return (a * 3, b * 3)
-# $$ LANGUAGE plpython3u;
-# """
-#     )
-#     assert actual == expected
-#
-#
-# ########################################################################################
-# # https://www.postgresql.org/docs/13/plpython-data.html#id-1.8.11.11.7
-# def test_set_from_sequence():
-#     def greet(how):
-#         # return tuple containing lists as composite types
-#         # all other combinations work also
-#         return ( [ how, "World" ], [ how, "PostgreSQL" ], [ how, "PL/Python" ] )
-#     actual = to_sql(greet, argtypes=["text"]).__str__()
-#     expected = ("""\
-# CREATE OR REPLACE FUNCTION greet (how text)
-#   RETURNS SETOF greeting
-# AS $$
-#     # return tuple containing lists as composite types
-#     # all other combinations work also
-#     return ( [ how, "World" ], [ how, "PostgreSQL" ], [ how, "PL/Python" ] )
-# $$ LANGUAGE plpython3u
-# """
-#     )
-#     assert actual == expected
-#
-#
-# def test_set_from_iterator():
-#     def greet(how):
-#         class producer:
-#             def __init__(self, how, who):
-#                 self.how = how
-#                 self.who = who
-#                 self.ndx = -1
-#
-#             def __iter__(self):
-#                 return self
-#
-#             def next(self):
-#                 self.ndx += 1
-#                 if self.ndx == len(self.who):
-#                     raise StopIteration
-#                 return (self.how, self.who[self.ndx])
-#
-#         return producer(how, [ "World", "PostgreSQL", "PL/Python" ])
-#
-#     actual = to_sql(greet, argtypes=["text"]).__str__()
-#     expected = ("""\
-# CREATE OR REPLACE FUNCTION greet (how text)
-#   RETURNS SETOF greeting
-# AS $$
-#     class producer:
-#         def __init__ (self, how, who):
-#           self.how = how
-#           self.who = who
-#           self.ndx = -1
-#
-#         def __iter__ (self):
-#           return self
-#
-#         def next (self):
-#           self.ndx += 1
-#           if self.ndx == len(self.who):
-#             raise StopIteration
-#           return ( self.how, self.who[self.ndx] )
-#
-#     return producer(how, [ "World", "PostgreSQL", "PL/Python" ])
-# $$ LANGUAGE plpython3u;
-# """
-#     )
-#     assert actual == expected
-#
-#
-# def test_set_from_generator():
-#     def greet(how):
-#         for who in ["World", "PostgreSQL", "PL/Python"]:
-#             yield ( how, who )
-#     actual = to_sql(greet, ["text"]).__str__()
-#     expected = ("""\
-# CREATE OR REPLACE FUNCTION greet (how text)
-#   RETURNS SETOF greeting
-# AS $$
-#     for who in [ "World", "PostgreSQL", "PL/Python" ]:
-#         yield ( how, who )
-# $$ LANGUAGE plpython3u;
-# """
-#     )
-#     assert actual == expected
-#
-#
-# def test_set_returning_function_with_OUT_parameters():
-#     def multiout_simple_setof(n):
-#         return [(1, 2)] * n
-#     actual = to_sql(multiout_simple_setof).__str__()
-#     expected = ("""\
-# CREATE OR REPLACE FUNCTION multiout_simple_setof(n integer, OUT integer, OUT integer)
-#   RETURNS SETOF record
-# AS $$
-#     return [(1, 2)] * n
-# $$ LANGUAGE plpython3u;
-# """
-#     )
-#     assert actual == expected
-
-
 def test_working_example(db):
-    from plpy_man import GD
+    from plpy_man.mocks import GD
+
     def global_func(n):
         return f"Hello, {n}"
 
@@ -525,6 +346,8 @@ def test_working_example(db):
     actual = db.execute(text("SELECT sql_func('World')")).one()
     expected = ("Hello, World",)
     assert actual == expected
+
+
 # fmt: on
 if __name__ == "__main__":
     pytest.main()

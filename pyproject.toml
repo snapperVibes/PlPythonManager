@@ -4,7 +4,8 @@
 [tool.poetry]
 name = "plpy_man"
 version = "0.2.0"
-description = "Keep source code in-sync between PlPython and your web-server"
+description = "Simplifies working with PlPython"
+readme = "README.md"
 packages = [
     { include = "plpy_man" },
 ]

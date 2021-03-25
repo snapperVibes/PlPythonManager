@@ -31,7 +31,7 @@ Ensure your PlPython functions match the web-server functions by copying them to
 ```python
 import plpy_man
 import sqlalchemy as sa
-from plpy_man import plpy, GD
+from plpy_man.mocks import plpy, GD
 from sqlalchemy.orm import Session, declarative_base
 
 # Setup your database
